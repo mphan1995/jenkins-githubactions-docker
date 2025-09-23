@@ -98,16 +98,10 @@ jobs:
           set -euo pipefail
           echo "Triggering Jenkins job=$JENKINS_JOB with image=$IMAGE:$IMAGE_TAG"
 
+          # cố lấy crumb, nếu fail thì để rỗng
           CRUMB=""
-          if curl -sSf -u "$JENKINS_USER:$JENKINS_API_TOKEN" "$JENKINS_URL/crumbIssuer/api/json" >/tmp/crumb.json 2>/dev/null; then
-            CRUMB=$(python - <<'PY'
-import json
-try:
-    print(json.load(open('/tmp/crumb.json')).get('crumb',''))
-except Exception:
-    print("")
-PY
-)
+          if curl -sSf -u "$JENKINS_USER:$JENKINS_API_TOKEN" "$JENKINS_URL/crumbIssuer/api/json" -o /tmp/crumb.json 2>/dev/null; then
+            CRUMB=$(python -c "import json,sys;print(json.load(open('/tmp/crumb.json')).get('crumb',''))" || echo "")
           fi
 
           EXTRA_HEADER=()
