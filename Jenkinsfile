@@ -12,30 +12,41 @@ pipeline {
     KUBECONFIG = credentials('kubeconfig-eks')
   }
 
-  stages {
     stage('Tools') {
       steps {
         sh '''#!/usr/bin/env bash
           set -euo pipefail
 
-          if ! command -v kubectl >/dev/null 2>&1; then
-            echo "Installing kubectl..."
-            curl -sSL -o kubectl https://dl.k8s.io/release/$(curl -sSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
-            chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-          fi
+          BIN="$WORKSPACE/bin"
+          mkdir -p "$BIN"
 
-          if ! command -v helm >/dev/null 2>&1; then
-            echo "Installing helm..."
-            curl -sSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-          fi
+          OS=linux
+          ARCH=amd64
 
-          kubectl version --client=true
-          helm version
+          echo "== Install kubectl =="
+          KVER=$(curl -sSL https://dl.k8s.io/release/stable.txt)
+          curl -sSL -o "$BIN/kubectl" "https://dl.k8s.io/release/${KVER}/bin/${OS}/${ARCH}/kubectl"
+          chmod +x "$BIN/kubectl"
+
+          echo "== Install helm =="
+          HELM_VER=$(curl -sSL https://api.github.com/repos/helm/helm/releases/latest | grep -m1 tag_name | cut -d '"' -f4)
+          curl -sSL -o /tmp/helm.tgz "https://get.helm.sh/helm-${HELM_VER}-${OS}-${ARCH}.tar.gz"
+          tar -xf /tmp/helm.tgz -C /tmp
+          mv "/tmp/${OS}-${ARCH}/helm" "$BIN/helm"
+          chmod +x "$BIN/helm"
+
+          echo "== Tools =="
+          "$BIN/kubectl" version --client
+          "$BIN/helm" version
         '''
       }
     }
 
+
     stage('Deploy via Helm') {
+      environment {
+        PATH = "${WORKSPACE}/bin:${PATH}"
+      }
       steps {
         sh '''#!/usr/bin/env bash
           set -euo pipefail
@@ -56,5 +67,4 @@ pipeline {
         '''
       }
     }
-  }
-}
+
