@@ -2,15 +2,17 @@ pipeline {
   agent any
 
   parameters {
-    string(name: 'IMAGE', defaultValue: 'changeme/max-phan-api', description: 'Container image repo')
-    string(name: 'IMAGE_TAG', defaultValue: 'sha-xxxxxxx', description: 'Image tag to deploy')
+    string(name: 'IMAGE', defaultValue: 'changeme/max-phan-api', description: 'Container image repo (vd: yourname/max-phan-api)')
+    string(name: 'IMAGE_TAG', defaultValue: 'sha-xxxxxxx', description: 'Image tag to deploy (vd: sha-abc1234 hoặc test)')
     choice(name: 'ENV', choices: ['dev', 'staging', 'prod'], description: 'Target environment/namespace')
   }
 
   environment {
-    // kubeconfig-eks: Secret file credential id trong Jenkins
+    // Credential kiểu "Secret file" chứa kubeconfig, ID phải khớp trong Jenkins Credentials
     KUBECONFIG = credentials('kubeconfig-eks')
   }
+
+  stages {
 
     stage('Tools') {
       steps {
@@ -35,15 +37,15 @@ pipeline {
           mv "/tmp/${OS}-${ARCH}/helm" "$BIN/helm"
           chmod +x "$BIN/helm"
 
-          echo "== Tools =="
+          echo "== Tool versions =="
           "$BIN/kubectl" version --client
           "$BIN/helm" version
         '''
       }
     }
 
-
     stage('Deploy via Helm') {
+      // đảm bảo dùng kubectl/helm vừa cài
       environment {
         PATH = "${WORKSPACE}/bin:${PATH}"
       }
@@ -51,12 +53,18 @@ pipeline {
         sh '''#!/usr/bin/env bash
           set -euo pipefail
 
+          echo "IMAGE=${IMAGE}"
+          echo "IMAGE_TAG=${IMAGE_TAG}"
+          echo "ENV=${ENV}"
+
           CHART="helm/fastapi-service"
           RELEASE="max-phan-${ENV}"
           NAMESPACE="${ENV}"
 
+          # Tạo namespace nếu chưa có
           kubectl get ns "$NAMESPACE" >/dev/null 2>&1 || kubectl create ns "$NAMESPACE"
 
+          # Deploy/Update
           helm upgrade --install "$RELEASE" "$CHART" \
             --namespace "$NAMESPACE" \
             --set image.repository="${IMAGE}" \
@@ -67,4 +75,6 @@ pipeline {
         '''
       }
     }
-  }
+
+  } // end stages
+} // end pipeline
