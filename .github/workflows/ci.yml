@@ -35,27 +35,19 @@ jobs:
       id-token: write
     env:
       IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/max-phan-api
+
+    # ➜ THÊM PHẦN NÀY để job expose outputs cho needs.*
+    outputs:
+      image: ${{ steps.out.outputs.image }}
+      image_tag: ${{ steps.out.outputs.image_tag }}
+
     steps:
       - uses: actions/checkout@v4
-
       - name: Docker login (Docker Hub)
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # Nếu dùng AWS ECR thay vì Docker Hub, bỏ comment block này và bỏ block login Docker Hub ở trên:
-      # - name: Configure AWS Credentials
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws-region: ap-southeast-1
-      # - name: Login to Amazon ECR
-      #   uses: aws-actions/amazon-ecr-login@v2
-      #   id: login-ecr
-      # - name: Set ECR image name
-      #   run: echo "IMAGE_NAME=${{ steps.login-ecr.outputs.registry }}/max-phan-api" >> $GITHUB_ENV
 
       - name: Compute tags
         id: tags
@@ -98,10 +90,9 @@ jobs:
           set -euo pipefail
           echo "Triggering Jenkins job=$JENKINS_JOB with image=$IMAGE:$IMAGE_TAG"
 
-          # cố lấy crumb, nếu fail thì để rỗng
           CRUMB=""
           if curl -sSf -u "$JENKINS_USER:$JENKINS_API_TOKEN" "$JENKINS_URL/crumbIssuer/api/json" -o /tmp/crumb.json 2>/dev/null; then
-            CRUMB=$(python -c "import json,sys;print(json.load(open('/tmp/crumb.json')).get('crumb',''))" || echo "")
+            CRUMB=$(python -c "import json;print(json.load(open('/tmp/crumb.json')).get('crumb',''))" || echo "")
           fi
 
           EXTRA_HEADER=()
@@ -115,3 +106,4 @@ jobs:
             --data-urlencode "IMAGE=$IMAGE" \
             --data-urlencode "IMAGE_TAG=$IMAGE_TAG" \
             --data-urlencode "ENV=dev"
+
