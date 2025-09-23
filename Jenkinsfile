@@ -2,8 +2,8 @@ pipeline {
   agent any
 
   parameters {
-    string(name: 'IMAGE', defaultValue: 'changeme/max-phan-api', description: 'Container image repo (vd: yourname/max-phan-api)')
-    string(name: 'IMAGE_TAG', defaultValue: 'sha-xxxxxxx', description: 'Image tag to deploy (vd: sha-abc1234 hoặc test)')
+    string(name: 'IMAGE', defaultValue: 'thonglinux/max-phan-api', description: 'Container image repo (vd: yourname/max-phan-api)')
+    string(name: 'IMAGE_TAG', defaultValue: 'test', description: 'Image tag to deploy (vd: sha-abc1234 hoặc test)')
     choice(name: 'ENV', choices: ['dev', 'staging', 'prod'], description: 'Target environment/namespace')
   }
 
