@@ -27,24 +27,32 @@ pipeline {
           ARCH=amd64
           CURL_OPTS="-LfsS --retry 5 --retry-delay 2 --connect-timeout 20 --max-time 300"
 
-          echo "== Disk && Workspace info =="
+          echo "== Disk & Net info =="
           df -h || true
-          echo "BIN=$BIN"
-          echo "CACHE=$CACHE"
+          echo "DNS:"
+          getent hosts dl.k8s.io || true
+          getent hosts get.helm.sh || true
+          echo "HTTP probe:"
+          curl -I https://dl.k8s.io/release/stable.txt || true
+          curl -I https://get.helm.sh/ || true
 
           echo "== Install kubectl =="
           KVER=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
+          echo "Kubernetes stable: $KVER"
           curl $CURL_OPTS -o "$BIN/kubectl.tmp" "https://dl.k8s.io/release/${KVER}/bin/${OS}/${ARCH}/kubectl"
           mv "$BIN/kubectl.tmp" "$BIN/kubectl"
           chmod +x "$BIN/kubectl"
 
           echo "== Install helm =="
-          HELM_VER=$(curl -fsSL https://api.github.com/repos/helm/helm/releases/latest | grep -m1 '"tag_name"' | cut -d '"' -f4)
+          # Tránh rate-limit GitHub API: hardcode phiên bản ổn định, hoặc đọc API và fallback
+          HELM_VER=$(curl -fsSL https://api.github.com/repos/helm/helm/releases/latest | grep -m1 '"tag_name"' | cut -d '"' -f4 || true)
+          HELM_VER=${HELM_VER:-v3.15.2}
+          echo "Helm version: $HELM_VER"
 
-          # Cách 1: tải về file .tgz vào CACHE
+          # Cách 1: tải file .tgz -> ghi ra CACHE
           if ! curl $CURL_OPTS -o "$CACHE/helm.tgz" "https://get.helm.sh/helm-${HELM_VER}-${OS}-${ARCH}.tar.gz"; then
             echo "WARN: download to file failed, retry piping to tar..."
-            # Cách 2: pipe trực tiếp sang tar (không ghi file trung gian)
+            # Cách 2: pipe trực tiếp, tránh lỗi ghi file tạm
             curl -LfsS "https://get.helm.sh/helm-${HELM_VER}-${OS}-${ARCH}.tar.gz" | tar -xz -C "$CACHE" || {
               echo "ERROR: cannot download/extract helm"
               exit 1
@@ -53,7 +61,6 @@ pipeline {
             tar -xzf "$CACHE/helm.tgz" -C "$CACHE"
           fi
 
-          # di chuyển binary
           if [ -f "$CACHE/${OS}-${ARCH}/helm" ]; then
             mv "$CACHE/${OS}-${ARCH}/helm" "$BIN/helm"
           elif [ -f "$CACHE/helm" ]; then
@@ -65,12 +72,13 @@ pipeline {
           fi
           chmod +x "$BIN/helm"
 
-          echo "== Tool versions =="
+          echo "== Versions =="
           "$BIN/kubectl" version --client
           "$BIN/helm" version
         '''
       }
     }
+
 
 
     stage('Deploy via Helm') {
