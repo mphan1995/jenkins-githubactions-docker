@@ -1,0 +1,21 @@
+image:
+  repository: changeme/max-phan-api
+  tag: dev
+  pullPolicy: IfNotPresent
+
+app:
+  env: dev
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  hosts:
+    - host: example.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
