@@ -68,7 +68,7 @@ pipeline {
         AWS_DEFAULT_REGION = "ap-southeast-1"   // đổi nếu khác
       }
       steps {
-        withCredentials([[ $class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds' ]]) {
+        withCredentials([[ $class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'kubeconfig-eks' ]]) {
           sh '''#!/usr/bin/env bash
             set -euo pipefail
 
